@@ -1,0 +1,33 @@
+server:
+  ws_url: "ws://127.0.0.1:8080/ws/agent"
+  jar_base_url: "http://127.0.0.1:8080/api/jars/download"
+agent:
+  id: "agent-a"
+  workspace: "data/agent-workspace"
+  log_dir: "data/logs"
+devices:
+  - id: "device-b"
+    host: "10.0.0.2"
+    ssh_user: "deploy"
+    ssh_port: 22
+    temp_dir: "/tmp/deploy"
+  - id: "device-c"
+    host: "10.0.0.3"
+    ssh_user: "deploy"
+    ssh_port: 22
+    temp_dir: "/tmp/deploy"
+services:
+  - device_id: "device-b"
+    service_name: "order-service"
+    deploy_dir: "/srv/order-service"
+    target_jar_name: "app.jar"
+    start_script: "/srv/order-service/bin/start.sh"
+    stop_script: "/srv/order-service/bin/stop.sh"
+    process_name: "order-service"
+  - device_id: "device-c"
+    service_name: "order-service"
+    deploy_dir: "/srv/order-service"
+    target_jar_name: "app.jar"
+    start_script: "/srv/order-service/bin/start.sh"
+    stop_script: "/srv/order-service/bin/stop.sh"
+    process_name: "order-service"

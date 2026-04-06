@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ops Deploy Console</title>
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --card: rgba(255, 252, 246, 0.92);
+      --line: rgba(74, 60, 45, 0.12);
+      --ink: #2d241c;
+      --muted: #6e6255;
+      --accent: #bf5b2c;
+      --accent-2: #1f6a5d;
+      --danger: #9f2f28;
+      --shadow: 0 24px 60px rgba(46, 33, 20, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(191, 91, 44, 0.22), transparent 34%),
+        radial-gradient(circle at top right, rgba(31, 106, 93, 0.18), transparent 28%),
+        linear-gradient(180deg, #f7f2ea 0%, var(--bg) 100%);
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 24px;
+      animation: rise 420ms ease-out;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(28px, 5vw, 52px);
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 720px;
+      line-height: 1.55;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #b7b1aa;
+    }
+
+    .status-dot.online { background: var(--accent-2); }
+    .status-dot.offline { background: var(--danger); }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(12, 1fr);
+    }
+
+    .card {
+      grid-column: span 12;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      backdrop-filter: blur(10px);
+      animation: rise 520ms ease-out;
+    }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+
+    .card p {
+      margin: 0 0 16px;
+      color: var(--muted);
+    }
+
+    .card.jar, .card.deploy { grid-column: span 6; }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    input, select, button {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+      font: inherit;
+    }
+
+    input, select {
+      margin-bottom: 14px;
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    button {
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), #dc7b38);
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      transition: transform 180ms ease, opacity 180ms ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: 0.55; cursor: default; transform: none; }
+
+    .inline {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .device-list {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .device-list label {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.72);
+      font-weight: 500;
+    }
+
+    .device-list input {
+      width: auto;
+      margin: 0;
+      padding: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .panel {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(45, 36, 28, 0.04);
+      color: var(--muted);
+      min-height: 56px;
+      white-space: pre-wrap;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(31, 106, 93, 0.12);
+      color: var(--accent-2);
+    }
+
+    .tag.failed, .tag.partial {
+      background: rgba(159, 47, 40, 0.12);
+      color: var(--danger);
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 860px) {
+      .card.jar, .card.deploy { grid-column: span 12; }
+      .inline { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <span class="status-chip">
+        <span id="statusDot" class="status-dot"></span>
+        <span id="agentStatus">检查 Agent 状态中...</span>
+      </span>
+      <h1>Ops Deploy Console</h1>
+      <p>上传 Jar、选择服务与目标设备、触发串行发布，并查看历史记录与失败原因。</p>
+    </section>
+
+    <section class="grid">
+      <article class="card jar">
+        <h2>Jar 管理</h2>
+        <p>上传 Jar 并按服务维度管理可用版本。</p>
+        <label for="uploadService">服务名</label>
+        <input id="uploadService" placeholder="例如 order-service">
+        <label for="uploadFile">Jar 文件</label>
+        <input id="uploadFile" type="file" accept=".jar">
+        <button id="uploadBtn">上传 Jar</button>
+        <div id="uploadResult" class="panel"></div>
+      </article>
+
+      <article class="card deploy">
+        <h2>发布操作</h2>
+        <p>先选择服务与 Jar，再勾选目标设备触发发布。</p>
+        <label for="deployService">服务名</label>
+        <input id="deployService" placeholder="例如 order-service">
+        <label for="jarSelect">目标 Jar</label>
+        <select id="jarSelect"></select>
+        <label>目标设备</label>
+        <div id="deviceList" class="device-list"></div>
+        <button id="deployBtn">开始发布</button>
+        <div id="taskStatus" class="panel"></div>
+      </article>
+
+      <article class="card">
+        <h2>可用 Jar 列表</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>服务</th>
+              <th>文件名</th>
+              <th>大小</th>
+              <th>上传时间</th>
+            </tr>
+          </thead>
+          <tbody id="jarTableBody"></tbody>
+        </table>
+      </article>
+
+      <article class="card">
+        <h2>发布历史</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>服务</th>
+              <th>Jar</th>
+              <th>设备</th>
+              <th>状态</th>
+              <th>详情</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </article>
+    </section>
+  </div>
+
+  <script>
+    const uploadBtn = document.getElementById('uploadBtn');
+    const deployBtn = document.getElementById('deployBtn');
+    const uploadResult = document.getElementById('uploadResult');
+    const taskStatus = document.getElementById('taskStatus');
+    const jarTableBody = document.getElementById('jarTableBody');
+    const historyBody = document.getElementById('historyBody');
+    const jarSelect = document.getElementById('jarSelect');
+    const deployService = document.getElementById('deployService');
+    const uploadService = document.getElementById('uploadService');
+    const uploadFile = document.getElementById('uploadFile');
+    const deviceList = document.getElementById('deviceList');
+    const statusDot = document.getElementById('statusDot');
+    const agentStatus = document.getElementById('agentStatus');
+
+    let jars = [];
+    let currentTaskID = '';
+    let pollTimer = null;
+    const deployBtnLabel = deployBtn.textContent;
+
+    async function requestJSON(url, options) {
+      const res = await fetch(url, options);
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload.error_message || payload.details || payload.error || res.statusText);
+      }
+      return payload;
+    }
+
+    function formatTime(value) {
+      if (!value) return '-';
+      return new Date(value).toLocaleString();
+    }
+
+    function statusClass(status) {
+      if (status === '失败' || status === '部分失败') return 'tag failed';
+      return 'tag';
+    }
+
+    function renderJars() {
+      const serviceFilter = deployService.value.trim();
+      const filtered = serviceFilter ? jars.filter(item => item.service_name === serviceFilter) : jars;
+
+      jarSelect.innerHTML = filtered.length
+        ? filtered.map(item => `<option value="${item.filename}">${item.filename}</option>`).join('')
+        : '<option value="">暂无 Jar</option>';
+
+      jarTableBody.innerHTML = jars.length
+        ? jars.map(item => `
+            <tr>
+              <td>${item.service_name}</td>
+              <td>${item.filename}</td>
+              <td>${item.size}</td>
+              <td>${formatTime(item.upload_time)}</td>
+            </tr>`).join('')
+        : '<tr><td colspan="4">暂无数据</td></tr>';
+    }
+
+    function renderDevices(devices) {
+      deviceList.innerHTML = devices.length
+        ? devices.map(device => `
+            <label>
+              <input type="checkbox" value="${device.id}">
+              <span>${device.id}</span>
+            </label>`).join('')
+        : '<div class="panel">当前没有可用设备</div>';
+    }
+
+    function renderHistory(items) {
+      historyBody.innerHTML = items.length
+        ? items.map(item => `
+            <tr>
+              <td>${formatTime(item.create_time)}</td>
+              <td>${item.service_name}</td>
+              <td>${item.jar_name}</td>
+              <td>${(item.target_device_ids || []).join(', ')}</td>
+              <td><span class="${statusClass(item.overall_status)}">${item.overall_status}</span></td>
+              <td>${(item.error_message || (item.device_results || []).map(r => `${r.device_id}:${r.error_msg || r.status}`).join(' | ')) || '-'}</td>
+            </tr>`).join('')
+        : '<tr><td colspan="6">暂无发布记录</td></tr>';
+    }
+
+    async function loadJars() {
+      const payload = await requestJSON('/api/jars');
+      jars = payload.items || [];
+      renderJars();
+    }
+
+    async function loadHistory() {
+      const payload = await requestJSON('/api/tasks');
+      renderHistory(payload.items || []);
+    }
+
+    async function loadAgentStatus() {
+      const payload = await requestJSON('/api/agent/status');
+      const online = Boolean(payload.online);
+      statusDot.className = `status-dot ${online ? 'online' : 'offline'}`;
+      agentStatus.textContent = online
+        ? `Agent 在线，设备：${(payload.devices || []).map(item => item.id).join(', ')}`
+        : 'Agent 离线';
+      renderDevices(payload.devices || []);
+    }
+
+    async function pollTask(taskID) {
+      if (!taskID) return;
+      const task = await requestJSON(`/api/tasks/${taskID}`);
+      const details = (task.device_results || []).map(item => `${item.device_id}: ${item.status}${item.error_msg ? ` (${item.error_msg})` : ''}`).join('\n');
+      taskStatus.textContent = `任务 ${task.task_id}\n状态：${task.status}\n${task.error_message || ''}\n${details}`;
+
+      if (['成功', '失败', '部分失败'].includes(task.status)) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        deployBtn.disabled = false;
+        deployBtn.textContent = deployBtnLabel;
+        await loadHistory();
+      }
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+      try {
+        uploadBtn.disabled = true;
+        const form = new FormData();
+        form.append('service_name', uploadService.value.trim());
+        form.append('file', uploadFile.files[0]);
+        const result = await requestJSON('/api/jars', { method: 'POST', body: form });
+        uploadResult.textContent = `上传成功：${result.service_name} / ${result.filename}`;
+        await loadJars();
+      } catch (error) {
+        uploadResult.textContent = `上传失败：${error.message}`;
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    });
+
+    deployService.addEventListener('input', renderJars);
+
+    deployBtn.addEventListener('click', async () => {
+      try {
+        deployBtn.disabled = true;
+        deployBtn.textContent = '发布中...';
+        const targetDeviceIDs = Array.from(deviceList.querySelectorAll('input:checked')).map(node => node.value);
+        const payload = await requestJSON('/api/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            service_name: deployService.value.trim(),
+            jar_name: jarSelect.value,
+            target_device_ids: targetDeviceIDs
+          })
+        });
+        currentTaskID = payload.task_id;
+        taskStatus.textContent = `任务已创建：${currentTaskID}\n状态：${payload.status}`;
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(() => pollTask(currentTaskID), 5000);
+        await pollTask(currentTaskID);
+      } catch (error) {
+        taskStatus.textContent = `发布失败：${error.message}`;
+        deployBtn.disabled = false;
+        deployBtn.textContent = deployBtnLabel;
+      }
+    });
+
+    Promise.all([loadJars(), loadHistory(), loadAgentStatus()]).catch(error => {
+      taskStatus.textContent = `初始化失败：${error.message}`;
+    });
+  </script>
+</body>
+</html>

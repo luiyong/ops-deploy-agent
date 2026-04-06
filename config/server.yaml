@@ -1,0 +1,5 @@
+listen_addr: ":8080"
+public_base_url: "http://127.0.0.1:8080"
+jar_dir: "data/jars"
+record_file: "data/records.json"
+ws_path: "/ws/agent"
